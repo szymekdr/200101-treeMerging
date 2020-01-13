@@ -1,6 +1,6 @@
 ## Szymek Drobniak
 ## 16/12/2019
-## Individuality analyses for Linhart et al. individual vocal signals paper
+## Tree merging based on fuzzy MRCA timepoint and random sample of target trees
 
 BiocManager::install("ggtree")
 
