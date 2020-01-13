@@ -14,3 +14,5 @@ c(1,2,3,4,4)
 #modification2
 
 #first line - no new line
+
+#second line - new line
