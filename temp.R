@@ -6,3 +6,7 @@ matrix(c(1,1),1,2)
 length(c(1,2))
 
 c(1,2,3,4,4)
+
+
+?lm()
+#modification
