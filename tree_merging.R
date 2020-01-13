@@ -24,17 +24,6 @@ for (p in required.pck) {
   }
 }
 
-#### load data ----
-
-data <- read.table("191216_individuality.csv", sep = ";", head = T)
-summary(data)
-
-plot_data <- data[, 4:20]
-
-data$bodymass_S <- scale(data$bodymass, center = T, scale = F)
-data$ds_S <- scale(data$ds, center = T, scale = F)
-data$HSest_S <- scale(data$HSest, center = T, scale = F)
-data$longevity_S <- scale(data$longevity, center = T, scale = F)
 
 #### trees loading and prep ----
 
@@ -48,6 +37,9 @@ trees_mammal <- read.nexus("output_mammal.nex")
 ggtree(trees_mammal[[1]]) + geom_treescale(0,-1) +
   geom_tiplab() +
   xlim_tree(250)
+
+
+#### function ----
 
 bind.trees.mrca <-
   function (trees1,
@@ -114,177 +106,3 @@ newtree <-
     MRCA = 320,
     MRCA.SE = 7.4
   )
-
-
-#### visualize trait ----
-
-ggtree(newtree) +
-  geom_treescale(0,-1) +
-  geom_tiplab(cex = 2) +
-  xlim_tree(400)
-
-newtree <- groupClade(newtree, c(160, 161), group_name = "Group")
-
-master_plot <- ggtree(newtree) +
-  #groupClade(newtree, list(birds = newtree$tip.label[1:59], mammals = newtree$tip.label[60:159]), "Group") +
-  # aes(color = Group) +
-  #geom_treescale(0, -1) +
-  geom_tiplab(cex = 2) +
-  xlim_tree(400) # +
-# scale_color_manual(values = c("darkred", "darkblue"))
-
-plot(master_plot)
-
-large_plot <-
-  master_plot %<+% plot_data[, c("species", "context")] + geom_tippoint(aes(color = context)) +
-  scale_color_manual(
-    values = c(
-      "lightgreen",
-      "coral",
-      "dodgerblue",
-      "lightblue",
-      "yellow3",
-      "orange",
-      "black",
-      "turquoise3",
-      "mediumorchid1",
-      "slateblue1",
-      "darkgreen"
-    ),
-    na.value = "gray93"
-  )
-
-plot(large_plot)
-
-final_plot <- large_plot +
-  geom_facet(
-    panel = "Data",
-    data = plot_data[, c("species", "ds")],
-    geom = ggstance::geom_barh,
-    aes(x = ds, color = context, fill = context),
-    stat = "identity",
-    width = 0.6
-  ) +
-  theme_tree2()
-plot(final_plot)
-
-final_plot <- large_plot +
-  geom_facet(
-    panel = "Individuality (DS)",
-    data = plot_data[, c("species", "HSest")],
-    geom = ggstance::geom_barh,
-    aes(x = HSest, fill = context),
-    stat = "identity",
-    width = 0.6
-  ) +
-  theme_tree2() +
-  scale_fill_manual(
-    values = c(
-      "lightgreen",
-      "coral",
-      "dodgerblue",
-      "lightblue",
-      "yellow3",
-      "orange",
-      "black",
-      "turquoise3",
-      "mediumorchid1",
-      "slateblue1",
-      "darkgreen"
-    ),
-    na.value = "gray93"
-  )
-
-plot(final_plot)
-
-
-#### MCMCglmm analysis ----
-
-data$species2 <- data$species
-levels(data$groupliving2) <- c("z_notknown", "gr", "sol")
-data$groupliving2 <- relevel(data$groupliving2, ref = "gr")
-
-phylo_A <- inverseA(newtree, nodes = "ALL")
-
-model1 <- MCMCglmm(ds_S ~ bodymass_S + longevity_S + context + groupliving2,
-                   data = na.omit(data[,c("ds_S", "bodymass_S", "longevity_S", "context", "groupliving2", "species", "species2")]),
-                   random = ~ species + species2,
-                   ginverse = list(species2 = phylo_A$Ainv),
-                   prior = list(R = list(V = 1, nu = 0.002),
-                                G = list(G1 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4),
-                                         G2 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4))),
-                   nitt = 200000, thin = 150, burnin = 50000)
-
-autocorr.plot(model1$Sol)
-autocorr.plot(model1$VCV)
-plot(model1$VCV)
-summary(model1)
-
-
-model2 <- MCMCglmm(ds_S ~ bodymass_S + longevity_S + context + groupliving2,
-                   data = na.omit(data[,c("ds_S", "bodymass_S", "longevity_S", "context", "groupliving2", "species", "species2")]),
-                   random = ~ species,
-                   prior = list(R = list(V = 1, nu = 0.002),
-                                G = list(G1 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4))),
-                   nitt = 200000, thin = 150, burnin = 50000)
-
-autocorr.plot(model2$Sol)
-autocorr.plot(model2$VCV)
-
-summary(model2)
-
-
-model3 <- MCMCglmm(ds_S ~ bodymass_S + context + groupliving2,
-                   data = na.omit(data[,c("ds_S", "bodymass_S", "context", "groupliving2", "species", "species2")]),
-                   random = ~ species + species2,
-                   ginverse = list(species2 = phylo_A$Ainv),
-                   prior = list(R = list(V = 1, nu = 0.002),
-                                G = list(G1 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4),
-                                         G2 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4))),
-                   nitt = 200000, thin = 150, burnin = 50000)
-
-autocorr.plot(model3$Sol)
-autocorr.plot(model3$VCV)
-plot(model3$VCV)
-summary(model3)
-
-
-model4 <- MCMCglmm(ds_S ~ bodymass_S + context + groupliving2,
-                   data = na.omit(data[,c("ds_S", "bodymass_S", "context", "groupliving2", "species", "species2")]),
-                   random = ~ species,
-                   prior = list(R = list(V = 1, nu = 0.002),
-                                G = list(G1 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4))),
-                   nitt = 200000, thin = 150, burnin = 50000)
-
-autocorr.plot(model4$Sol)
-autocorr.plot(model4$VCV)
-
-summary(model4)
-
-
-model3_HS <- MCMCglmm(HSest_S ~ bodymass_S + context + groupliving2,
-                   data = na.omit(data[,c("HSest_S", "bodymass_S", "context", "groupliving2", "species", "species2")]),
-                   random = ~ species + species2,
-                   ginverse = list(species2 = phylo_A$Ainv),
-                   prior = list(R = list(V = 1, nu = 0.002),
-                                G = list(G1 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4),
-                                         G2 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4))),
-                   nitt = 200000, thin = 150, burnin = 50000)
-
-autocorr.plot(model3_HS$Sol)
-autocorr.plot(model3_HS$VCV)
-plot(model3_HS$VCV)
-summary(model3_HS)
-
-
-model4_HS <- MCMCglmm(HSest_S ~ bodymass_S + context + groupliving2,
-                   data = na.omit(data[,c("HSest_S", "bodymass_S", "context", "groupliving2", "species", "species2")]),
-                   random = ~ species,
-                   prior = list(R = list(V = 1, nu = 0.002),
-                                G = list(G1 = list(V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1e4))),
-                   nitt = 200000, thin = 150, burnin = 50000)
-
-autocorr.plot(model4_HS$Sol)
-autocorr.plot(model4_HS$VCV)
-
-summary(model4_HS)
